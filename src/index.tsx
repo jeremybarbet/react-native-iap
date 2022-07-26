@@ -1,13 +1,12 @@
+import {Linking, NativeModules, Platform} from 'react-native';
+
 import type {ReceiptType as AmazonReceiptType} from './types/amazon';
 import type {ReceiptType as AndroidReceiptType} from './types/android';
-import type {
-  ReceiptValidationResponse as AppleReceiptValidationResponse,
-  PaymentDiscount as ApplePaymentDiscount,
-} from './types/apple';
+import type {ReceiptValidationResponse as AppleReceiptValidationResponse} from './types/apple';
 import {ReceiptValidationStatus as AppleReceiptValidationStatus} from './types/apple';
-
-import {Linking, NativeModules, Platform} from 'react-native';
-import {
+import type {AndroidModuleProps, NativeModuleProps, Sku} from './types/global';
+import {AndroidModule, IosModule, NativeModule} from './module';
+import type {
   InAppPurchase,
   Product,
   ProductCommon,
@@ -18,7 +17,6 @@ import {
   Subscription,
   SubscriptionPurchase,
 } from './types';
-import {AndroidModule, IosModule, NativeModule} from './module';
 
 const {IapAmazon} = NativeModules;
 
@@ -27,32 +25,28 @@ const ANDROID_ITEM_TYPE_IAP = 'inapp';
 
 /**
  * Init module for purchase flow. Required on Android In ios it will check whether user canMakePayment.
- * @returns {Promise<boolean>}
  */
-export const initConnection = (): Promise<boolean> =>
+export const initConnection: NativeModuleProps['initConnection'] = () =>
   NativeModule.initConnection();
 
 /**
  * End module for purchase flow.
- * @returns {Promise<void>}
  */
-export const endConnection = (): Promise<void> => NativeModule.endConnection();
+export const endConnection: NativeModuleProps['endConnection'] = () =>
+  NativeModule.endConnection();
 
 /**
  * Consume all 'ghost' purchases (that is, pending payment that already failed but is still marked as pending in Play Store cache). Android only.
- * @returns {Promise<boolean>}
  */
-export const flushFailedPurchasesCachedAsPendingAndroid = (): Promise<
-  string[]
-> => AndroidModule.flushFailedPurchasesCachedAsPending();
+export const flushFailedPurchasesCachedAsPendingAndroid: AndroidModuleProps['flushFailedPurchasesCachedAsPending'] =
+  () => AndroidModule.flushFailedPurchasesCachedAsPending();
 
 /**
  * Fill products with additional data
- * @param {Array<ProductCommon>} products Products
  */
 const fillProductsAdditionalData = async (
-  products: Array<ProductCommon>,
-): Promise<Array<ProductCommon>> => {
+  products: Product[],
+): Promise<Product[]> => {
   // Amazon
   if (IapAmazon) {
     // On amazon we must get the user marketplace to detect the currency
@@ -87,34 +81,31 @@ const fillProductsAdditionalData = async (
 
 /**
  * Get a list of products (consumable and non-consumable items, but not subscriptions)
- * @param {string[]} skus The item skus
- * @returns {Promise<Product[]>}
  */
-export const getProducts = (skus: string[]): Promise<Array<Product>> =>
-  (
-    Platform.select({
-      ios: async () => {
-        const items = await IosModule.getItems(skus);
+export const getProducts = (skus: Sku[]) =>
+  Platform.select({
+    ios: async () => {
+      const items = await IosModule.getItems(skus);
 
-        return items.filter((item: Product) => skus.includes(item.productId));
-      },
-      android: async () => {
-        const products = await AndroidModule.getItemsByType(
-          ANDROID_ITEM_TYPE_IAP,
-          skus,
-        );
+      return items.filter((item) => skus.includes(item.productId));
+    },
+    android: async () => {
+      const products = await AndroidModule.getItemsByType(
+        ANDROID_ITEM_TYPE_IAP,
+        skus,
+      );
 
-        return fillProductsAdditionalData(products);
-      },
-    }) || Promise.resolve
-  )();
+      return fillProductsAdditionalData(products);
+    },
+    default: () => Promise.resolve([]),
+  });
 
 /**
  * Get a list of subscriptions
  * @param {string[]} skus The item skus
  * @returns {Promise<Subscription[]>}
  */
-export const getSubscriptions = (skus: string[]): Promise<Subscription[]> =>
+export const getSubscriptions = (skus: Sku[]): Promise<Subscription[]> =>
   (
     Platform.select({
       ios: async () => {
@@ -204,7 +195,7 @@ export const getAvailablePurchases = (): Promise<
  * @returns {Promise<InAppPurchase>}
  */
 export const requestPurchase = (
-  sku: string,
+  sku: Sku,
   andDangerouslyFinishTransactionAutomaticallyIOS: boolean = false,
   obfuscatedAccountIdAndroid: string | undefined = undefined,
   obfuscatedProfileIdAndroid: string | undefined = undefined,
@@ -212,7 +203,6 @@ export const requestPurchase = (
   Platform.select({
     ios: async () => {
       if (andDangerouslyFinishTransactionAutomaticallyIOS) {
-        // eslint-disable-next-line no-console
         console.warn(
           `You are dangerously allowing react-native-iap to finish your transaction automatically. You should set andDangerouslyFinishTransactionAutomatically to false when calling requestPurchase and call finishTransaction manually when you have delivered the purchased goods to the user. It defaults to true to provide backwards compatibility. Will default to false in version 4.0.0.`,
         );
@@ -247,7 +237,7 @@ export const requestPurchase = (
  * @returns {Promise<SubscriptionPurchase | null>} Promise resolves to null when using proratioModesAndroid=DEFERRED, and to a SubscriptionPurchase otherwise
  */
 export const requestSubscription = (
-  sku: string,
+  sku: Sku,
   andDangerouslyFinishTransactionAutomaticallyIOS: boolean = false,
   purchaseTokenAndroid: string | undefined = undefined,
   prorationModeAndroid: ProrationModesAndroid = -1,
@@ -258,9 +248,7 @@ export const requestSubscription = (
     Platform.select({
       ios: async () => {
         if (andDangerouslyFinishTransactionAutomaticallyIOS) {
-          // eslint-disable-next-line no-console
           console.warn(
-            // eslint-disable-next-line max-len
             'You are dangerously allowing react-native-iap to finish your transaction automatically. You should set andDangerouslyFinishTransactionAutomatically to false when calling requestPurchase and call finishTransaction manually when you have delivered the purchased goods to the user. It defaults to true to provide backwards compatibility. Will default to false in version 4.0.0.',
           );
         }
@@ -289,7 +277,7 @@ export const requestSubscription = (
  * @returns {Promise<void>}
  */
 export const requestPurchaseWithQuantityIOS = (
-  sku: string,
+  sku: Sku,
   quantity: number,
 ): Promise<InAppPurchase> => IosModule.buyProductWithQuantityIOS(sku, quantity);
 
@@ -377,7 +365,7 @@ export const acknowledgePurchaseAndroid = (
  * @returns {Promise<void>}
  */
 export const deepLinkToSubscriptionsAndroid = async (
-  sku: string,
+  sku: Sku,
 ): Promise<void> => {
   return Linking.openURL(
     `https://play.google.com/store/account/subscriptions?package=${await AndroidModule.getPackageName()}&sku=${sku}`,
@@ -462,11 +450,9 @@ const requestAgnosticReceiptValidationIos = async (
  * @param {number} withOffer.timestamp The timestamp of the signature
  * @returns {Promise<void>}
  */
-export const requestPurchaseWithOfferIOS = (
-  sku: string,
-  forUser: string,
-  withOffer: ApplePaymentDiscount,
-): Promise<void> => IosModule.buyProductWithOffer(sku, forUser, withOffer);
+export const requestPurchaseWithOfferIOS: IapIosProps['buyProductWithOffer'] = (
+  ...args
+) => IosModule.buyProductWithOffer(...args);
 
 /**
  * Validate receipt for iOS.

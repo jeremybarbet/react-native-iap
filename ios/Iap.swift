@@ -3,26 +3,26 @@ import StoreKit
 
 // Based on https://stackoverflow.com/a/40135192/570612
 extension Date {
-    var millisecondsSince1970:Int64 {
+    var millisecondsSince1970: Int64 {
         return Int64((self.timeIntervalSince1970 * 1000.0).rounded())
     }
 
-    var millisecondsSince1970String:String {
+    var millisecondsSince1970String: String {
         return String((self.timeIntervalSince1970 * 1000.0).rounded())
     }
 
-    init(milliseconds:Int64) {
+    init(milliseconds: Int64) {
         self = Date(timeIntervalSince1970: TimeInterval(milliseconds) / 1000)
     }
 }
 
 extension SKProductsRequest {
-    var key:String{
+    var key: String {
         return String(self.hashValue)
     }
 }
 
-typealias IapPromise = (RCTPromiseResolveBlock,RCTPromiseRejectBlock)
+typealias IapPromise = (RCTPromiseResolveBlock, RCTPromiseRejectBlock)
 
 @objc(Iap)
 class Iap: RCTEventEmitter, SKRequestDelegate, SKPaymentTransactionObserver, SKProductsRequestDelegate {
@@ -32,13 +32,13 @@ class Iap: RCTEventEmitter, SKRequestDelegate, SKPaymentTransactionObserver, SKP
     private var pendingTransactionWithAutoFinish = false
     private var receiptBlock: ((Data?, Error?) -> Void)? // Block to handle request the receipt async from delegate
     private var validProducts: [SKProduct]
-    private var promotedPayment: SKPayment? = nil
-    private var promotedProduct: SKProduct? = nil
-    private var productsRequest: SKProductsRequest? = nil
+    private var promotedPayment: SKPayment?
+    private var promotedProduct: SKProduct?
+    private var productsRequest: SKProductsRequest?
     private var countPendingTransaction: Int?
 
     override init() {
-        promisesByKey = [String : [IapPromise]]()
+        promisesByKey = [String: [IapPromise]]()
         pendingTransactionWithAutoFinish = false
         myQueue = DispatchQueue(label: "reject")
         validProducts = [SKProduct]()
@@ -75,7 +75,7 @@ class Iap: RCTEventEmitter, SKRequestDelegate, SKPaymentTransactionObserver, SKP
     }
 
     func addPromise(forKey key: String, resolve: @escaping RCTPromiseResolveBlock, reject: @escaping RCTPromiseRejectBlock) {
-        var promises:[IapPromise]? = promisesByKey[key]
+        var promises: [IapPromise]? = promisesByKey[key]
 
         if promises == nil {
             promises = []
@@ -86,7 +86,7 @@ class Iap: RCTEventEmitter, SKRequestDelegate, SKPaymentTransactionObserver, SKP
     }
 
     func resolvePromises(forKey key: String?, value: Any?) {
-        let promises:[IapPromise]? = promisesByKey[key ?? ""]
+        let promises: [IapPromise]? = promisesByKey[key ?? ""]
 
         if let promises = promises {
             for tuple in promises {
@@ -123,14 +123,13 @@ class Iap: RCTEventEmitter, SKRequestDelegate, SKPaymentTransactionObserver, SKP
         return ["iap-promoted-product", "purchase-updated", "purchase-error"]
     }
 
-
     @objc public func initConnection(
         _ resolve: @escaping RCTPromiseResolveBlock = { _ in },
         reject: @escaping RCTPromiseRejectBlock = { _, _, _ in }
     ) {
         SKPaymentQueue.default().remove(IapQueue.shared)
-        if let queue = IapQueue.shared.queue, let payment = IapQueue.shared.payment, let product = IapQueue.shared.product  {
-            let val = paymentQueue(queue, shouldAddStorePayment: payment,for: product)
+        if let queue = IapQueue.shared.queue, let payment = IapQueue.shared.payment, let product = IapQueue.shared.product {
+            let val = paymentQueue(queue, shouldAddStorePayment: payment, for: product)
             print("Promoted product response \(val)")
         }
         SKPaymentQueue.default().add(self)
@@ -171,9 +170,8 @@ class Iap: RCTEventEmitter, SKRequestDelegate, SKPaymentTransactionObserver, SKP
         SKPaymentQueue.default().restoreCompletedTransactions()
     }
 
-
     @objc public func buyProduct(
-        _ sku:String,
+        _ sku: String,
         andDangerouslyFinishTransactionAutomatically: Bool,
         resolve: @escaping RCTPromiseResolveBlock = { _ in },
         reject: @escaping RCTPromiseRejectBlock = { _, _, _ in }
@@ -194,13 +192,13 @@ class Iap: RCTEventEmitter, SKRequestDelegate, SKPaymentTransactionObserver, SKP
 
             let payment = SKMutablePayment(product: prod)
             SKPaymentQueue.default().add(payment)
-        } else{
+        } else {
             if hasListeners {
                 let err = [
-                    "debugMessage" : "Invalid product ID.",
-                    "code" : "E_DEVELOPER_ERROR",
-                    "message" : "Invalid product ID.",
-                    "productId" : sku
+                    "debugMessage": "Invalid product ID.",
+                    "code": "E_DEVELOPER_ERROR",
+                    "message": "Invalid product ID.",
+                    "productId": sku
                 ]
                 sendEvent(withName: "purchase-error", body: err)
             }
@@ -208,11 +206,10 @@ class Iap: RCTEventEmitter, SKRequestDelegate, SKPaymentTransactionObserver, SKP
         }
     }
 
-
     @objc public func buyProductWithOffer(
         _ sku: String,
         forUser usernameHash: String,
-        withOffer discountOffer: Dictionary<String,String>,
+        withOffer discountOffer: [String: String],
         resolve: @escaping RCTPromiseResolveBlock = { _ in },
         reject: @escaping RCTPromiseRejectBlock = { _, _, _ in }
     ) {
@@ -244,13 +241,13 @@ class Iap: RCTEventEmitter, SKRequestDelegate, SKPaymentTransactionObserver, SKP
             }
             payment.applicationUsername = usernameHash
             SKPaymentQueue.default().add(payment)
-        }else {
+        } else {
             if hasListeners {
                 let err = [
-                    "debugMessage" : "Invalid product ID.",
-                    "message" : "Invalid product ID.",
-                    "code" : "E_DEVELOPER_ERROR",
-                    "productId" : sku
+                    "debugMessage": "Invalid product ID.",
+                    "message": "Invalid product ID.",
+                    "code": "E_DEVELOPER_ERROR",
+                    "productId": sku
                 ]
                 sendEvent(withName: "purchase-error", body: err)
             }
@@ -258,8 +255,6 @@ class Iap: RCTEventEmitter, SKRequestDelegate, SKPaymentTransactionObserver, SKP
         }
 
     }
-
-
 
     @objc public func buyProductWithQuantityIOS(
         _ sku: String,
@@ -287,17 +282,16 @@ class Iap: RCTEventEmitter, SKRequestDelegate, SKPaymentTransactionObserver, SKP
         } else {
             if hasListeners {
                 let err = [
-                    "debugMessage" : "Invalid product ID.",
-                    "message" : "Invalid product ID.",
-                    "code" : "E_DEVELOPER_ERROR",
-                    "productId" : sku
+                    "debugMessage": "Invalid product ID.",
+                    "message": "Invalid product ID.",
+                    "code": "E_DEVELOPER_ERROR",
+                    "productId": sku
                 ]
                 sendEvent(withName: "purchase-error", body: err)
             }
             reject("E_DEVELOPER_ERROR", "Invalid product ID.", nil)
         }
     }
-
 
     @objc public func clearTransaction(
         _ resolve: @escaping RCTPromiseResolveBlock = { _ in },
@@ -318,7 +312,6 @@ class Iap: RCTEventEmitter, SKRequestDelegate, SKPaymentTransactionObserver, SKP
         resolve(nil)
 
     }
-
 
     @objc public func clearProducts(
         _ resolve: @escaping RCTPromiseResolveBlock = { _ in },
@@ -352,8 +345,6 @@ class Iap: RCTEventEmitter, SKRequestDelegate, SKPaymentTransactionObserver, SKP
         }
     }
 
-
-
     @objc public func  requestReceipt(
         _ refresh: Bool,
         resolve: @escaping RCTPromiseResolveBlock = { _ in },
@@ -368,8 +359,6 @@ class Iap: RCTEventEmitter, SKRequestDelegate, SKPaymentTransactionObserver, SKP
         }
     }
 
-
-
     @objc public func  finishTransaction(
         _ transactionIdentifier: String,
         resolve: @escaping RCTPromiseResolveBlock = { _ in },
@@ -379,12 +368,11 @@ class Iap: RCTEventEmitter, SKRequestDelegate, SKPaymentTransactionObserver, SKP
         resolve(nil)
     }
 
-
     @objc public func getPendingTransactions (
         _ resolve: @escaping RCTPromiseResolveBlock = { _ in },
         reject: @escaping RCTPromiseRejectBlock = { _, _, _ in }
     ) {
-        requestReceiptData(withBlock: false) { receiptData, error in
+        requestReceiptData(withBlock: false) { receiptData, _ in
             var output: [AnyHashable] = []
             if let receipt = receiptData {
                 let transactions = SKPaymentQueue.default().transactions
@@ -392,11 +380,11 @@ class Iap: RCTEventEmitter, SKRequestDelegate, SKPaymentTransactionObserver, SKP
                 for item in transactions {
                     let timestamp = item.transactionDate?.millisecondsSince1970 == nil ? nil : String(item.transactionDate!.millisecondsSince1970)
                     let purchase = [
-                        "transactionDate" : timestamp,
-                        "transactionId" : item.transactionIdentifier,
-                        "productId" : item.payment.productIdentifier,
-                        "quantity" : "\(item.payment.quantity)",
-                        "transactionReceipt" : receipt.base64EncodedString(options: [])
+                        "transactionDate": timestamp,
+                        "transactionId": item.transactionIdentifier,
+                        "productId": item.payment.productIdentifier,
+                        "quantity": "\(item.payment.quantity)",
+                        "transactionReceipt": receipt.base64EncodedString(options: [])
                     ]
                     output.append(purchase)
 
@@ -423,14 +411,12 @@ class Iap: RCTEventEmitter, SKRequestDelegate, SKPaymentTransactionObserver, SKP
         #endif
     }
 
-
     // StoreKitDelegate
     func productsRequest(_ request: SKProductsRequest, didReceive response: SKProductsResponse) {
         for prod in response.products {
             add(prod)
         }
         var items: [[String: Any?]] = [[:]]
-
 
         let lockQueue = DispatchQueue(label: "validProducts")
         lockQueue.sync {
@@ -469,8 +455,8 @@ class Iap: RCTEventEmitter, SKRequestDelegate, SKPaymentTransactionObserver, SKP
                 unwrappedReceiptBlock(nil, standardError)
                 receiptBlock = nil
                 return
-            }else {
-                if let key: String = productsRequest?.key{
+            } else {
+                if let key: String = productsRequest?.key {
                     myQueue.sync(execute: { [self] in
                                     rejectPromises(
                                         forKey: key,
@@ -483,7 +469,6 @@ class Iap: RCTEventEmitter, SKRequestDelegate, SKPaymentTransactionObserver, SKP
             }
         }
     }
-
 
     func paymentQueue(_ queue: SKPaymentQueue, updatedTransactions transactions: [SKPaymentTransaction]) {
         for transaction in transactions {
@@ -504,11 +489,11 @@ class Iap: RCTEventEmitter, SKRequestDelegate, SKPaymentTransactionObserver, SKP
                 myQueue.sync(execute: { [self] in
                     if hasListeners {
                         let err = [
-                            "debugMessage" : "The payment was deferred (awaiting approval via parental controls for instance)",
-                            "code" : "E_DEFERRED_PAYMENT",
-                            "message" : "The payment was deferred (awaiting approval via parental controls for instance)",
-                            "productId" : transaction.payment.productIdentifier,
-                            "quantity" : "\(transaction.payment.quantity)"
+                            "debugMessage": "The payment was deferred (awaiting approval via parental controls for instance)",
+                            "code": "E_DEFERRED_PAYMENT",
+                            "message": "The payment was deferred (awaiting approval via parental controls for instance)",
+                            "productId": transaction.payment.productIdentifier,
+                            "quantity": "\(transaction.payment.quantity)"
                         ]
                         sendEvent(withName: "purchase-error", body: err)
                     }
@@ -517,7 +502,7 @@ class Iap: RCTEventEmitter, SKRequestDelegate, SKPaymentTransactionObserver, SKP
                         code: "E_DEFERRED_PAYMENT",
                         message: "The payment was deferred (awaiting approval via parental controls for instance)",
                         error: nil)
-                });
+                })
 
             case .failed:
                 print("\n\n\n\n\n\n Purchase Failed  !! \n\n\n\n\n")
@@ -528,11 +513,11 @@ class Iap: RCTEventEmitter, SKRequestDelegate, SKPaymentTransactionObserver, SKP
                         let code =  nsError?.code
                         let responseCode = String(code ?? 0)
                         let err = [
-                            "responseCode" : responseCode,
-                            "debugMessage" : transaction.error?.localizedDescription,
-                            "code" : standardErrorCode(code),
-                            "message" : transaction.error?.localizedDescription,
-                            "productId" : transaction.payment.productIdentifier
+                            "responseCode": responseCode,
+                            "debugMessage": transaction.error?.localizedDescription,
+                            "code": standardErrorCode(code),
+                            "message": transaction.error?.localizedDescription,
+                            "productId": transaction.payment.productIdentifier
                         ]
                         sendEvent(withName: "purchase-error", body: err)
                     }
@@ -544,7 +529,7 @@ class Iap: RCTEventEmitter, SKRequestDelegate, SKPaymentTransactionObserver, SKP
                         error: nsError)
 
                 })
-                break;
+                break
             }
 
         }
@@ -602,9 +587,7 @@ class Iap: RCTEventEmitter, SKRequestDelegate, SKPaymentTransactionObserver, SKP
         }
     }
 
-
     func standardErrorCode(_ code: Int?) -> String? {
-
 
         let descriptions = [
             "E_UNKNOWN",
@@ -629,8 +612,7 @@ class Iap: RCTEventEmitter, SKRequestDelegate, SKPaymentTransactionObserver, SKP
         return descriptions[code]
     }
 
-
-    func getProductObject(_ product: SKProduct) -> [String : Any?] {
+    func getProductObject(_ product: SKProduct) -> [String: Any?] {
         let formatter = NumberFormatter()
         formatter.numberStyle = .currency
         formatter.locale = product.priceLocale
@@ -671,7 +653,7 @@ class Iap: RCTEventEmitter, SKRequestDelegate, SKPaymentTransactionObserver, SKP
             }
 
             // subscriptionPeriod = product.subscriptionPeriod ? [product.subscriptionPeriod stringValue] : @"";
-            //introductoryPrice = product.introductoryPrice != nil ? [NSString stringWithFormat:@"%@", product.introductoryPrice] : @"";
+            // introductoryPrice = product.introductoryPrice != nil ? [NSString stringWithFormat:@"%@", product.introductoryPrice] : @"";
             if product.introductoryPrice != nil {
                 formatter.locale = product.introductoryPrice?.priceLocale
                 if let price = product.introductoryPrice?.price {
@@ -700,13 +682,12 @@ class Iap: RCTEventEmitter, SKRequestDelegate, SKPaymentTransactionObserver, SKP
                     introductoryPriceSubscriptionPeriod = "WEEK"
                 } else if product.introductoryPrice?.subscriptionPeriod.unit == .month {
                     introductoryPriceSubscriptionPeriod = "MONTH"
-                }else if product.introductoryPrice?.subscriptionPeriod.unit == .year {
+                } else if product.introductoryPrice?.subscriptionPeriod.unit == .year {
                     introductoryPriceSubscriptionPeriod = "YEAR"
                 } else {
                     introductoryPriceSubscriptionPeriod = ""
                 }
-            }
-            else{
+            } else {
                 introductoryPrice = ""
                 introductoryPriceAsAmountIOS = ""
                 introductoryPricePaymentMode = ""
@@ -714,8 +695,6 @@ class Iap: RCTEventEmitter, SKRequestDelegate, SKPaymentTransactionObserver, SKP
                 introductoryPriceSubscriptionPeriod = ""
             }
         }
-
-
 
         if #available(iOS 10.0, tvOS 10.0, *) {
             currencyCode = product.priceLocale.currencyCode
@@ -733,34 +712,31 @@ class Iap: RCTEventEmitter, SKRequestDelegate, SKPaymentTransactionObserver, SKP
             discounts = getDiscountData(product)
         }
 
-
         let obj: [String: Any?] = [
-            "productId" : product.productIdentifier,
-            "price" : "\(product.price)",
-            "currency" : currencyCode,
-            "countryCode" : countryCode ?? "",
-            "type" : itemType,
-            "title" : product.localizedTitle != "" ? product.localizedTitle : "",
-            "description" : product.localizedDescription != "" ? product.localizedDescription : "",
-            "localizedPrice" : localizedPrice,
-            "subscriptionPeriodNumberIOS" : periodNumberIOS,
-            "subscriptionPeriodUnitIOS" : periodUnitIOS,
-            "introductoryPrice" : introductoryPrice,
-            "introductoryPriceAsAmountIOS" : introductoryPriceAsAmountIOS,
-            "introductoryPricePaymentModeIOS" : introductoryPricePaymentMode,
-            "introductoryPriceNumberOfPeriodsIOS" : introductoryPriceNumberOfPeriods,
-            "introductoryPriceSubscriptionPeriodIOS" : introductoryPriceSubscriptionPeriod,
-            "discounts" : discounts
+            "productId": product.productIdentifier,
+            "price": "\(product.price)",
+            "currency": currencyCode,
+            "countryCode": countryCode ?? "",
+            "type": itemType,
+            "title": product.localizedTitle != "" ? product.localizedTitle : "",
+            "description": product.localizedDescription != "" ? product.localizedDescription : "",
+            "localizedPrice": localizedPrice,
+            "subscriptionPeriodNumberIOS": periodNumberIOS,
+            "subscriptionPeriodUnitIOS": periodUnitIOS,
+            "introductoryPrice": introductoryPrice,
+            "introductoryPriceAsAmountIOS": introductoryPriceAsAmountIOS,
+            "introductoryPricePaymentModeIOS": introductoryPricePaymentMode,
+            "introductoryPriceNumberOfPeriodsIOS": introductoryPriceNumberOfPeriods,
+            "introductoryPriceSubscriptionPeriodIOS": introductoryPriceSubscriptionPeriod,
+            "discounts": discounts
         ]
 
         return obj
     }
 
-
-
-    func getDiscountData(_ product: SKProduct) -> [[String:String?]]? {
+    func getDiscountData(_ product: SKProduct) -> [[String: String?]]? {
         if #available(iOS 12.2, tvOS 12.2, *) {
-            var mappedDiscounts : [[String:String?]] = []
+            var mappedDiscounts: [[String: String?]] = []
             var localizedPrice: String?
             var paymendMode: String?
             var subscriptionPeriods: String?
@@ -804,7 +780,6 @@ class Iap: RCTEventEmitter, SKRequestDelegate, SKPaymentTransactionObserver, SKP
                     subscriptionPeriods = ""
                 }
 
-
                 let discountIdentifier = discount.identifier
                 switch discount.type {
                 case SKProductDiscount.Type.introductory:
@@ -818,15 +793,14 @@ class Iap: RCTEventEmitter, SKRequestDelegate, SKPaymentTransactionObserver, SKP
                     break
                 }
 
-
                 let discountObj = [
-                    "identifier" : discountIdentifier,
-                    "type" : discountType,
-                    "numberOfPeriods" : numberOfPeriods,
-                    "price" : "\(discount.price)",
-                    "localizedPrice" : localizedPrice,
-                    "paymentMode" : paymendMode,
-                    "subscriptionPeriod" : subscriptionPeriods
+                    "identifier": discountIdentifier,
+                    "type": discountType,
+                    "numberOfPeriods": numberOfPeriods,
+                    "price": "\(discount.price)",
+                    "localizedPrice": localizedPrice,
+                    "paymentMode": paymendMode,
+                    "subscriptionPeriod": subscriptionPeriods
                 ]
                 mappedDiscounts.append(discountObj)
             }
@@ -835,17 +809,16 @@ class Iap: RCTEventEmitter, SKRequestDelegate, SKPaymentTransactionObserver, SKP
         return nil
     }
 
-
-    func getPurchaseData(_ transaction: SKPaymentTransaction, withBlock block: @escaping (_ transactionDict: [String : Any]?) -> Void) {
-        requestReceiptData(withBlock: false) { receiptData, error in
+    func getPurchaseData(_ transaction: SKPaymentTransaction, withBlock block: @escaping (_ transactionDict: [String: Any]?) -> Void) {
+        requestReceiptData(withBlock: false) { receiptData, _ in
             if receiptData == nil {
                 block(nil)
             } else {
                 var purchase = [
-                    "transactionDate" : transaction.transactionDate?.millisecondsSince1970String,
-                    "transactionId" : transaction.transactionIdentifier,
-                    "productId" : transaction.payment.productIdentifier,
-                    "transactionReceipt" : receiptData?.base64EncodedString(options: [])
+                    "transactionDate": transaction.transactionDate?.millisecondsSince1970String,
+                    "transactionId": transaction.transactionIdentifier,
+                    "productId": transaction.payment.productIdentifier,
+                    "transactionReceipt": receiptData?.base64EncodedString(options: [])
                 ]
                 // originalTransaction is available for restore purchase and purchase of cancelled/expired subscriptions
                 if let originalTransaction = transaction.original {
@@ -853,7 +826,7 @@ class Iap: RCTEventEmitter, SKRequestDelegate, SKPaymentTransactionObserver, SKP
                     purchase["originalTransactionIdentifierIOS"] = originalTransaction.transactionIdentifier
                 }
 
-                block(purchase as [String : Any])
+                block(purchase as [String: Any])
             }
         }
     }
@@ -873,7 +846,7 @@ class Iap: RCTEventEmitter, SKRequestDelegate, SKPaymentTransactionObserver, SKP
 
     func isReceiptPresent() -> Bool {
         let receiptURL = Bundle.main.appStoreReceiptURL
-        var canReachError: Error? = nil
+        var canReachError: Error?
         do {
             try _ = receiptURL?.checkResourceIsReachable()
         } catch let error {
@@ -884,11 +857,11 @@ class Iap: RCTEventEmitter, SKRequestDelegate, SKPaymentTransactionObserver, SKP
 
     func receiptData() -> Data? {
         let receiptURL = Bundle.main.appStoreReceiptURL
-        var receiptData: Data? = nil
+        var receiptData: Data?
         if let receiptURL = receiptURL {
-            do{
+            do {
                 try receiptData = Data(contentsOf: receiptURL)
-            }catch _{
+            } catch _ {
 
             }
         }
@@ -912,7 +885,6 @@ class Iap: RCTEventEmitter, SKRequestDelegate, SKPaymentTransactionObserver, SKP
             receiptBlock = nil
         }
     }
-
 
     func paymentQueue(_ queue: SKPaymentQueue, removedTransactions transactions: [SKPaymentTransaction]) {
         print("removedTransactions")

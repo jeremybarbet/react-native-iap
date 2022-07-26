@@ -2,15 +2,20 @@ module.exports = {
   root: true,
   parser: '@babel/eslint-parser',
   extends: ['@react-native-community', 'prettier'],
+  plugins: ['@typescript-eslint', 'prettier', 'simple-import-sort'],
   rules: {
-    'prettier/prettier': [
+    '@typescript-eslint/no-unused-vars': 'off',
+    'prettier/prettier': 'error',
+    'simple-import-sort/imports': [
       'error',
       {
-        quoteProps: 'consistent',
-        singleQuote: true,
-        tabWidth: 2,
-        trailingComma: 'es5',
-        useTabs: false,
+        groups: [
+          ['^\\u0000'],
+          ['^react', '^@?\\w'],
+          ['^(utils)(/.*|$)'],
+          ['^\\.\\.(?!/?$)', '^\\.\\./?$'],
+          ['^\\./(?=.*/)(?!/?$)', '^\\.(?!/?$)', '^\\./?$'],
+        ],
       },
     ],
   },

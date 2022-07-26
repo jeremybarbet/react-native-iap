@@ -11,15 +11,15 @@ public class IapQueue: NSObject, SKPaymentTransactionObserver {
     @objc
     public static let shared = IapQueue()
 
-    var queue: SKPaymentQueue? = nil;
-    var payment: SKPayment? = nil;
-    var product: SKProduct? = nil;
+    var queue: SKPaymentQueue?
+    var payment: SKPayment?
+    var product: SKProduct?
 
-    private override init(){}
+    private override init() {}
 
     // Sent when a user initiates an IAP buy from the App Store
     @available(iOS 11.0, *)
-    func paymentQueue(_ queue: SKPaymentQueue, shouldAddStorePayment payment: SKPayment, for product: SKProduct) -> Bool{
+    func paymentQueue(_ queue: SKPaymentQueue, shouldAddStorePayment payment: SKPayment, for product: SKProduct) -> Bool {
         IapQueue.shared.queue = queue
         IapQueue.shared.payment = payment
         IapQueue.shared.product = product

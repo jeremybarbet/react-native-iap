@@ -1,5 +1,5 @@
+import type {ComponentType} from 'react';
 import React, {
-  ComponentType,
   createContext,
   useContext,
   useEffect,
@@ -7,6 +7,12 @@ import React, {
   useState,
 } from 'react';
 import {NativeEventEmitter, NativeModules} from 'react-native';
+
+import {getPromotedProductIOS, initConnection} from '../index';
+import {
+  purchaseErrorListener,
+  purchaseUpdatedListener,
+} from '../native-event-emitter';
 import type {
   InAppPurchase,
   Product,
@@ -15,11 +21,6 @@ import type {
   Subscription,
   SubscriptionPurchase,
 } from '../types';
-import {getPromotedProductIOS, initConnection} from '../index';
-import {
-  purchaseErrorListener,
-  purchaseUpdatedListener,
-} from '../native-event-emitter';
 
 type WithIAPContext = ReturnType<typeof withIAPContext>;
 

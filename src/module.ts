@@ -1,5 +1,10 @@
 import {NativeModules, Platform} from 'react-native';
-import {InstallSourceAndroid} from './types';
+
+import type {
+  AmazonModuleProps,
+  AndroidModuleProps,
+  IosModuleProps,
+} from './types/global';
 
 const {IapIos, IapAndroid, IapAmazon} = NativeModules;
 
@@ -18,25 +23,14 @@ const linkingError = new Proxy(
   },
 );
 
-export const getInstallSourceAndroid = (): InstallSourceAndroid => {
-  return IapAndroid
-    ? InstallSourceAndroid.GOOGLE_PLAY
-    : InstallSourceAndroid.AMAZON;
-};
+export const IosModule = (IapIos ? IapIos : linkingError) as IosModuleProps;
 
-export const IosModule = IapIos ? IapIos : linkingError;
+export const AndroidModule = (
+  IapAndroid ? IapAndroid : linkingError
+) as AndroidModuleProps;
 
-export const AndroidModule =
-  !IapAndroid && !IapAmazon
-    ? linkingError
-    : IapAndroid
-    ? IapAndroid
-    : IapAmazon;
+export const AmazonModule = (
+  IapAmazon ? IapAmazon : linkingError
+) as AmazonModuleProps;
 
-export const AmazonModule = IapAmazon ? IapAmazon : linkingError;
-
-export const NativeModule = IapAndroid
-  ? IapAndroid
-  : IapAmazon
-  ? IapAmazon
-  : IapIos;
+export const NativeModule = IapAndroid ?? IapAmazon ?? IapIos ?? linkingError;

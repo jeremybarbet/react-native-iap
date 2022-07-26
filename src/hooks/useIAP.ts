@@ -1,14 +1,16 @@
-import type {Purchase} from '../types';
+import {useCallback} from 'react';
+
 import {
-  getPurchaseHistory,
   finishTransaction as iapFinishTransaction,
   getAvailablePurchases as iapGetAvailablePurchases,
   getProducts as iapGetProducts,
+  getPurchaseHistory,
   getSubscriptions as iapGetSubscriptions,
   requestPurchase as iapRequestPurchase,
   requestSubscription as iapRequestSubscription,
 } from '../index';
-import {useCallback} from 'react';
+import type {Purchase} from '../types';
+
 import {useIAPContext} from './withIAPContext';
 
 export function useIAP() {
