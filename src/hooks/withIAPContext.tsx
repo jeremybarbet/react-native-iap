@@ -1,6 +1,13 @@
-import React, {useContext, useEffect, useMemo, useState} from 'react';
+import React, {
+  ComponentType,
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
 import {NativeEventEmitter, NativeModules} from 'react-native';
-import {
+import type {
   InAppPurchase,
   Product,
   Purchase,
@@ -8,48 +15,19 @@ import {
   Subscription,
   SubscriptionPurchase,
 } from '../types';
+import {getPromotedProductIOS, initConnection} from '../index';
 import {
-  getPromotedProductIOS,
-  initConnection,
   purchaseErrorListener,
   purchaseUpdatedListener,
-} from '../iap';
+} from '../native-event-emitter';
 
-type IAPContextType = {
-  connected: boolean;
-  products: Product[];
-  promotedProductsIOS: Product[];
-  subscriptions: Subscription[];
-  purchaseHistories: Purchase[];
-  availablePurchases: Purchase[];
-  currentPurchase?: Purchase;
-  currentPurchaseError?: PurchaseError;
-  setProducts: (products: Product[]) => void;
-  setSubscriptions: (subscriptions: Subscription[]) => void;
-  setPurchaseHistories: (purchaseHistories: Purchase[]) => void;
-  setAvailablePurchases: (availablePurchases: Purchase[]) => void;
-  setCurrentPurchase: (currentPurchase: Purchase | undefined) => void;
-  setCurrentPurchaseError: (
-    currentPurchaseError: PurchaseError | undefined,
-  ) => void;
-};
+type WithIAPContext = ReturnType<typeof withIAPContext>;
 
 const {RNIapIos} = NativeModules;
 const IAPEmitter = new NativeEventEmitter(RNIapIos);
+const IAPContext = createContext<WithIAPContext>({} as WithIAPContext);
 
-// @ts-ignore
-const IAPContext = React.createContext<IAPContextType>(null);
-
-export function useIAPContext(): IAPContextType {
-  const ctx = useContext(IAPContext);
-  if (!ctx) {
-    throw new Error('You need wrap your app with withIAPContext HOC');
-  }
-
-  return ctx;
-}
-
-export function withIAPContext<T>(Component: React.ComponentType<T>) {
+export function withIAPContext<T>(Component: ComponentType<T>) {
   return function WrapperComponent(props: T) {
     const [connected, setConnected] = useState<boolean>(false);
     const [products, setProducts] = useState<Product[]>([]);
@@ -151,4 +129,14 @@ export function withIAPContext<T>(Component: React.ComponentType<T>) {
       </IAPContext.Provider>
     );
   };
+}
+
+export function useIAPContext() {
+  const ctx = useContext(IAPContext);
+
+  if (!ctx) {
+    throw new Error('You need wrap your app with withIAPContext HOC');
+  }
+
+  return ctx;
 }

@@ -1,11 +1,17 @@
 module.exports = {
   root: true,
-  extends: '@dooboo/eslint-config',
+  parser: '@babel/eslint-parser',
+  extends: ['@react-native-community', 'prettier'],
   rules: {
-    'eslint-comments/no-unlimited-disable': 0,
-    'eslint-comments/no-unused-disable': 0,
-  },
-  env: {
-    'jest/globals': true,
+    'prettier/prettier': [
+      'error',
+      {
+        quoteProps: 'consistent',
+        singleQuote: true,
+        tabWidth: 2,
+        trailingComma: 'es5',
+        useTabs: false,
+      },
+    ],
   },
 };
