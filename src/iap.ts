@@ -1,7 +1,3 @@
-import * as Amazon from './types/amazon';
-import * as Android from './types/android';
-import * as Apple from './types/apple';
-
 import {
   EmitterSubscription,
   Linking,
@@ -9,65 +5,68 @@ import {
   NativeModules,
   Platform,
 } from 'react-native';
-import {
-  IAPErrorCode,
+
+import type * as Amazon from './types/amazon';
+import type * as Android from './types/android';
+import type * as Apple from './types/apple';
+import {ReceiptValidationStatus} from './types/apple';
+import type {
   InAppPurchase,
-  InstallSourceAndroid,
   Product,
   ProductCommon,
   ProductPurchase,
   ProrationModesAndroid,
   PurchaseError,
   PurchaseResult,
-  PurchaseStateAndroid,
   Subscription,
   SubscriptionPurchase,
 } from './types';
+import {
+  IAPErrorCode,
+  InstallSourceAndroid,
+  PurchaseStateAndroid,
+} from './types';
 
-const {RNIapIos, RNIapModule, RNIapAmazonModule} = NativeModules;
+const {IapIos, IapAndroid, IapAmazon} = NativeModules;
 
 const ANDROID_ITEM_TYPE_SUBSCRIPTION = 'subs';
 const ANDROID_ITEM_TYPE_IAP = 'inapp';
 
 export const getInstallSourceAndroid = (): InstallSourceAndroid => {
-  return RNIapModule
+  return IapAndroid
     ? InstallSourceAndroid.GOOGLE_PLAY
     : InstallSourceAndroid.AMAZON;
 };
 
 const checkNativeAndroidAvailable = (): void => {
-  if (!RNIapModule && !RNIapAmazonModule) {
+  if (!IapAndroid && !IapAmazon) {
     throw new Error(IAPErrorCode.E_IAP_NOT_AVAILABLE);
   }
 };
 
-const getAndroidModule = (): typeof RNIapModule | typeof RNIapAmazonModule => {
+const getAndroidModule = (): typeof IapAndroid | typeof IapAmazon => {
   checkNativeAndroidAvailable();
 
-  return RNIapModule ? RNIapModule : RNIapAmazonModule;
+  return IapAndroid ? IapAndroid : IapAmazon;
 };
 
 const checkNativeiOSAvailable = (): void => {
-  if (!RNIapIos) {
+  if (!IapIos) {
     throw new Error(IAPErrorCode.E_IAP_NOT_AVAILABLE);
   }
 };
 
-const getIosModule = (): typeof RNIapIos => {
+const getIosModule = (): typeof IapIos => {
   checkNativeiOSAvailable();
 
-  return RNIapIos;
+  return IapIos;
 };
 
 const getNativeModule = ():
-  | typeof RNIapModule
-  | typeof RNIapAmazonModule
-  | typeof RNIapIos => {
-  return RNIapModule
-    ? RNIapModule
-    : RNIapAmazonModule
-    ? RNIapAmazonModule
-    : RNIapIos;
+  | typeof IapAndroid
+  | typeof IapAmazon
+  | typeof IapIos => {
+  return IapAndroid ? IapAndroid : IapAmazon ? IapAmazon : IapIos;
 };
 
 /**
@@ -100,9 +99,9 @@ const fillProductsAdditionalData = async (
   products: Array<ProductCommon>,
 ): Promise<Array<ProductCommon>> => {
   // Amazon
-  if (RNIapAmazonModule) {
+  if (IapAmazon) {
     // On amazon we must get the user marketplace to detect the currency
-    const user = await RNIapAmazonModule.getUser();
+    const user = await IapAmazon.getUser();
 
     const currencies = {
       CA: 'CAD',
@@ -118,7 +117,8 @@ const fillProductsAdditionalData = async (
       FR: 'EUR',
     };
 
-    const currency = currencies[user.userMarketplaceAmazon];
+    const currency =
+      currencies[user.userMarketplaceAmazon as keyof typeof currencies];
 
     // Add currency to products
     products.forEach((product) => {
@@ -194,8 +194,8 @@ export const getPurchaseHistory = (): Promise<
         return getIosModule().getAvailableItems();
       },
       android: async () => {
-        if (RNIapAmazonModule) {
-          return await RNIapAmazonModule.getAvailableItems();
+        if (IapAmazon) {
+          return await IapAmazon.getAvailableItems();
         }
 
         const products = await getAndroidModule().getPurchaseHistoryByType(
@@ -224,8 +224,8 @@ export const getAvailablePurchases = (): Promise<
         return getIosModule().getAvailableItems();
       },
       android: async () => {
-        if (RNIapAmazonModule) {
-          return await RNIapAmazonModule.getAvailableItems();
+        if (IapAmazon) {
+          return await IapAmazon.getAvailableItems();
         }
 
         const products = await getAndroidModule().getAvailableItemsByType(
@@ -259,9 +259,7 @@ export const requestPurchase = (
     Platform.select({
       ios: async () => {
         if (andDangerouslyFinishTransactionAutomaticallyIOS) {
-          // eslint-disable-next-line no-console
           console.warn(
-            // eslint-disable-next-line max-len
             'You are dangerously allowing react-native-iap to finish your transaction automatically. You should set andDangerouslyFinishTransactionAutomatically to false when calling requestPurchase and call finishTransaction manually when you have delivered the purchased goods to the user. It defaults to true to provide backwards compatibility. Will default to false in version 4.0.0.',
           );
         }
@@ -306,9 +304,7 @@ export const requestSubscription = (
     Platform.select({
       ios: async () => {
         if (andDangerouslyFinishTransactionAutomaticallyIOS) {
-          // eslint-disable-next-line no-console
           console.warn(
-            // eslint-disable-next-line max-len
             'You are dangerously allowing react-native-iap to finish your transaction automatically. You should set andDangerouslyFinishTransactionAutomatically to false when calling requestPurchase and call finishTransaction manually when you have delivered the purchased goods to the user. It defaults to true to provide backwards compatibility. Will default to false in version 4.0.0.',
           );
         }
@@ -432,7 +428,7 @@ export const deepLinkToSubscriptionsAndroid = async (
   checkNativeAndroidAvailable();
 
   return Linking.openURL(
-    `https://play.google.com/store/account/subscriptions?package=${await RNIapModule.getPackageName()}&sku=${sku}`,
+    `https://play.google.com/store/account/subscriptions?package=${await IapAndroid.getPackageName()}&sku=${sku}`,
   );
 };
 
@@ -484,10 +480,7 @@ const requestAgnosticReceiptValidationIos = async (
 
   // Best practice is to check for test receipt and check sandbox instead
   // https://developer.apple.com/documentation/appstorereceipts/verifyreceipt
-  if (
-    response &&
-    response.status === Apple.ReceiptValidationStatus.TEST_RECEIPT
-  ) {
+  if (response && response.status === ReceiptValidationStatus.TEST_RECEIPT) {
     const testResponse = await fetchJsonOrThrow(
       'https://sandbox.itunes.apple.com/verifyReceipt',
       receiptBody,

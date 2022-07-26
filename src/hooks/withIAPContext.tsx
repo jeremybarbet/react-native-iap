@@ -1,6 +1,13 @@
 import React, {useContext, useEffect, useMemo, useState} from 'react';
 import {NativeEventEmitter, NativeModules} from 'react-native';
+
 import {
+  getPromotedProductIOS,
+  initConnection,
+  purchaseErrorListener,
+  purchaseUpdatedListener,
+} from '../iap';
+import type {
   InAppPurchase,
   Product,
   Purchase,
@@ -8,12 +15,6 @@ import {
   Subscription,
   SubscriptionPurchase,
 } from '../types';
-import {
-  getPromotedProductIOS,
-  initConnection,
-  purchaseErrorListener,
-  purchaseUpdatedListener,
-} from '../iap';
 
 type IAPContextType = {
   connected: boolean;
@@ -34,8 +35,8 @@ type IAPContextType = {
   ) => void;
 };
 
-const {RNIapIos} = NativeModules;
-const IAPEmitter = new NativeEventEmitter(RNIapIos);
+const {IapIos} = NativeModules;
+const IAPEmitter = new NativeEventEmitter(IapIos);
 
 // @ts-ignore
 const IAPContext = React.createContext<IAPContextType>(null);
