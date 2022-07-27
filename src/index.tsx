@@ -1,27 +1,26 @@
-import {Linking, NativeModules, Platform} from 'react-native';
+import {Linking, Platform} from 'react-native';
 
-import type {ReceiptType as AmazonReceiptType} from './types/amazon';
-import type {ReceiptType as AndroidReceiptType} from './types/android';
-import type {ReceiptValidationResponse as AppleReceiptValidationResponse} from './types/apple';
-import {ReceiptValidationStatus as AppleReceiptValidationStatus} from './types/apple';
+import type {AmazonReceiptType} from './types/amazon';
+import {AndroidReceiptType, AndroidSkuType} from './types/android';
+import type {AppleReceiptValidationResponse} from './types/apple';
+import {AppleReceiptValidationStatus} from './types/apple';
 import type {AndroidModuleProps, NativeModuleProps, Sku} from './types/global';
-import {AndroidModule, IosModule, NativeModule} from './module';
+import {isAndroid, isIos} from './utils/platform';
+import {AmazonModule, AndroidModule, IosModule, NativeModule} from './module';
 import type {
+  AndroidProrationModes,
   InAppPurchase,
   Product,
-  ProductCommon,
   ProductPurchase,
-  ProrationModesAndroid,
   PurchaseResult,
-  PurchaseStateAndroid,
   Subscription,
   SubscriptionPurchase,
 } from './types';
+import {AndroidPurchaseState, AndroidPurchaseType} from './types';
 
-const {IapAmazon} = NativeModules;
-
-const ANDROID_ITEM_TYPE_SUBSCRIPTION = 'subs';
-const ANDROID_ITEM_TYPE_IAP = 'inapp';
+export * from './hooks';
+export * from './types';
+export * from './native-event-emitter';
 
 /**
  * Init module for purchase flow. Required on Android In ios it will check whether user canMakePayment.
@@ -48,9 +47,9 @@ const fillProductsAdditionalData = async (
   products: Product[],
 ): Promise<Product[]> => {
   // Amazon
-  if (IapAmazon) {
+  if (AmazonModule) {
     // On amazon we must get the user marketplace to detect the currency
-    const user = await IapAmazon.getUser();
+    const user = await AmazonModule.getUser();
 
     const currencies = {
       CA: 'CAD',
@@ -82,49 +81,46 @@ const fillProductsAdditionalData = async (
 /**
  * Get a list of products (consumable and non-consumable items, but not subscriptions)
  */
-export const getProducts = (skus: Sku[]) =>
-  Platform.select({
-    ios: async () => {
-      const items = await IosModule.getItems(skus);
+export const getProducts = async (skus: Sku[]) => {
+  if (isIos) {
+    const items = await IosModule.getItems(skus);
 
-      return items.filter((item) => skus.includes(item.productId));
-    },
-    android: async () => {
-      const products = await AndroidModule.getItemsByType(
-        ANDROID_ITEM_TYPE_IAP,
-        skus,
-      );
+    return items.filter((item) => skus.includes(item.productId));
+  }
 
-      return fillProductsAdditionalData(products);
-    },
-    default: () => Promise.resolve([]),
-  });
+  if (isAndroid) {
+    const products = await AndroidModule.getItemsByType(
+      AndroidSkuType.INAPP,
+      skus,
+    );
+
+    return fillProductsAdditionalData(products);
+  }
+
+  return [];
+};
 
 /**
  * Get a list of subscriptions
- * @param {string[]} skus The item skus
- * @returns {Promise<Subscription[]>}
  */
-export const getSubscriptions = (skus: Sku[]): Promise<Subscription[]> =>
-  (
-    Platform.select({
-      ios: async () => {
-        const items = await IosModule.getItems(skus);
+export const getSubscriptions = async (skus: Sku[]) => {
+  if (isIos) {
+    const items = await IosModule.getItems(skus);
 
-        return items.filter((item: Subscription) =>
-          skus.includes(item.productId),
-        );
-      },
-      android: async () => {
-        const subscriptions = await AndroidModule.getItemsByType(
-          ANDROID_ITEM_TYPE_SUBSCRIPTION,
-          skus,
-        );
+    return items.filter((item: Subscription) => skus.includes(item.productId));
+  }
 
-        return fillProductsAdditionalData(subscriptions);
-      },
-    }) || Promise.resolve
-  )();
+  if (isAndroid) {
+    const subscriptions = await AndroidModule.getItemsByType(
+      AndroidSkuType.SUBS,
+      skus,
+    );
+
+    return fillProductsAdditionalData(subscriptions);
+  }
+
+  return [];
+};
 
 /**
  * Gets an inventory of purchases made by the user regardless of consumption status
@@ -139,8 +135,8 @@ export const getPurchaseHistory = (): Promise<
         return IosModule.getAvailableItems();
       },
       android: async () => {
-        if (IapAmazon) {
-          return await IapAmazon.getAvailableItems();
+        if (AmazonModule) {
+          return await AmazonModule.getAvailableItems();
         }
 
         const products = await AndroidModule.getPurchaseHistoryByType(
@@ -169,16 +165,16 @@ export const getAvailablePurchases = (): Promise<
         return IosModule.getAvailableItems();
       },
       android: async () => {
-        if (IapAmazon) {
-          return await IapAmazon.getAvailableItems();
+        if (AmazonModule) {
+          return await AmazonModule.getAvailableItems();
         }
 
         const products = await AndroidModule.getAvailableItemsByType(
-          ANDROID_ITEM_TYPE_IAP,
+          AndroidSkuType.INAPP,
         );
 
         const subscriptions = await AndroidModule.getAvailableItemsByType(
-          ANDROID_ITEM_TYPE_SUBSCRIPTION,
+          AndroidSkuType.SUBS,
         );
 
         return products.concat(subscriptions);
@@ -228,48 +224,64 @@ export const requestPurchase = (
 
 /**
  * Request a purchase for product. This will be received in `PurchaseUpdatedListener`.
- * @param {string} [sku] The product's sku/ID
- * @param {boolean} [andDangerouslyFinishTransactionAutomaticallyIOS] You should set this to false and call finishTransaction manually when you have delivered the purchased goods to the user. It defaults to true to provide backwards compatibility. Will default to false in version 4.0.0.
- * @param {string} [purchaseTokenAndroid] purchaseToken that the user is upgrading or downgrading from (Android).
- * @param {ProrationModesAndroid} [prorationModeAndroid] UNKNOWN_SUBSCRIPTION_UPGRADE_DOWNGRADE_POLICY, IMMEDIATE_WITH_TIME_PRORATION, IMMEDIATE_AND_CHARGE_PRORATED_PRICE, IMMEDIATE_WITHOUT_PRORATION, DEFERRED
- * @param {string} [obfuscatedAccountIdAndroid] Specifies an optional obfuscated string that is uniquely associated with the user's account in your app.
- * @param {string} [obfuscatedProfileIdAndroid] Specifies an optional obfuscated string that is uniquely associated with the user's profile in your app.
- * @returns {Promise<SubscriptionPurchase | null>} Promise resolves to null when using proratioModesAndroid=DEFERRED, and to a SubscriptionPurchase otherwise
  */
-export const requestSubscription = (
+export const requestSubscription = async (
+  /**
+   * The product's sku/ID
+   */
   sku: Sku,
-  andDangerouslyFinishTransactionAutomaticallyIOS: boolean = false,
-  purchaseTokenAndroid: string | undefined = undefined,
-  prorationModeAndroid: ProrationModesAndroid = -1,
-  obfuscatedAccountIdAndroid: string | undefined = undefined,
-  obfuscatedProfileIdAndroid: string | undefined = undefined,
-): Promise<SubscriptionPurchase | null> =>
-  (
-    Platform.select({
-      ios: async () => {
-        if (andDangerouslyFinishTransactionAutomaticallyIOS) {
-          console.warn(
-            'You are dangerously allowing react-native-iap to finish your transaction automatically. You should set andDangerouslyFinishTransactionAutomatically to false when calling requestPurchase and call finishTransaction manually when you have delivered the purchased goods to the user. It defaults to true to provide backwards compatibility. Will default to false in version 4.0.0.',
-          );
-        }
 
-        return IosModule.buyProduct(
-          sku,
-          andDangerouslyFinishTransactionAutomaticallyIOS,
-        );
-      },
-      android: async () => {
-        return AndroidModule.buyItemByType(
-          ANDROID_ITEM_TYPE_SUBSCRIPTION,
-          sku,
-          purchaseTokenAndroid,
-          prorationModeAndroid,
-          obfuscatedAccountIdAndroid,
-          obfuscatedProfileIdAndroid,
-        );
-      },
-    }) || Promise.resolve
-  )();
+  /**
+   * You should set this to false and call finishTransaction manually when you have delivered the purchased goods to the user. It defaults to true to provide backwards compatibility. Will default to false in version 4.0.0.
+   */
+  andDangerouslyFinishTransactionAutomaticallyIOS: boolean = false,
+
+  /**
+   * purchaseToken that the user is upgrading or downgrading from (Android).
+   */
+  purchaseTokenAndroid: string | undefined = undefined,
+
+  /**
+   * UNKNOWN_SUBSCRIPTION_UPGRADE_DOWNGRADE_POLICY, IMMEDIATE_WITH_TIME_PRORATION, IMMEDIATE_AND_CHARGE_PRORATED_PRICE, IMMEDIATE_WITHOUT_PRORATION, DEFERRED
+   */
+  prorationModeAndroid: AndroidProrationModes = -1,
+
+  /**
+   * Specifies an optional obfuscated string that is uniquely associated with the user's account in your app.
+   */
+  obfuscatedAccountIdAndroid: string | undefined = undefined,
+
+  /**
+   * Specifies an optional obfuscated string that is uniquely associated with the user's profile in your app.
+   */
+  obfuscatedProfileIdAndroid: string | undefined = undefined,
+) => {
+  if (isIos) {
+    if (andDangerouslyFinishTransactionAutomaticallyIOS) {
+      console.warn(
+        'You are dangerously allowing react-native-iap to finish your transaction automatically. You should set andDangerouslyFinishTransactionAutomatically to false when calling requestPurchase and call finishTransaction manually when you have delivered the purchased goods to the user. It defaults to true to provide backwards compatibility. Will default to false in version 4.0.0.',
+      );
+    }
+
+    return IosModule.buyProduct(
+      sku,
+      andDangerouslyFinishTransactionAutomaticallyIOS,
+    );
+  }
+
+  if (isAndroid) {
+    return AndroidModule.buyItemByType(
+      AndroidSkuType.SUBS,
+      sku,
+      purchaseTokenAndroid,
+      prorationModeAndroid,
+      obfuscatedAccountIdAndroid,
+      obfuscatedProfileIdAndroid,
+    );
+  }
+
+  return null;
+};
 
 /**
  * Request a purchase for product. This will be received in `PurchaseUpdatedListener`.
@@ -313,7 +325,7 @@ export const finishTransaction = (
           } else if (
             purchase.userIdAmazon ||
             (!purchase.isAcknowledgedAndroid &&
-              purchase.purchaseStateAndroid === PurchaseStateAndroid.PURCHASED)
+              purchase.purchaseStateAndroid === AndroidPurchaseState.PURCHASED)
           ) {
             return AndroidModule.acknowledgePurchase(
               purchase.purchaseToken,

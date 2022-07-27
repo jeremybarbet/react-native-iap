@@ -1,3 +1,5 @@
+import type {PurchaseStateAndroid} from './index';
+
 export interface ProductCommon {
   title: string;
   description: string;
@@ -33,3 +35,10 @@ export interface ProductPurchase {
   userJsonAmazon?: string;
   isCanceledAmazon?: boolean;
 }
+
+export interface Product extends ProductCommon {
+  type: 'inapp' | 'iap';
+  productId: string;
+}
+
+export type InAppPurchase = ProductPurchase;

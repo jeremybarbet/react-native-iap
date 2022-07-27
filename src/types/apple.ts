@@ -1,23 +1,31 @@
-export enum ReceiptValidationStatus {
+export enum AppleReceiptValidationStatus {
   /** The receipt validated successfully. */
   SUCCESS = 0,
+
   /** The App Store could not read the JSON object you provided. */
   INVALID_JSON = 21000,
+
   /** The data in the receipt-data property was malformed or missing. */
   INVALID_RECEIPT_DATA = 21002,
+
   /** The receipt could not be authenticated. */
-  COULT_NOT_AUTHENTICATE = 21003,
+  COULD_NOT_AUTHENTICATE = 21003,
+
   /** The shared secret you provided does not match the shared secret on file for your account. */
   INVALID_SECRET = 21004,
+
   /** The receipt server is not currently available. */
   UNAVAILABLE = 21005,
-  /** This receipt is valid but the subscription has expired. When this status code is returned to your server, the receipt data is also decoded and returned as part of the response.
-    Only returned for iOS 6 style transaction receipts for auto-renewable subscriptions. */
+
+  /** This receipt is valid but the subscription has expired. When this status code is returned to your server, the receipt data is also decoded and returned as part of the response. Only returned for iOS 6 style transaction receipts for auto-renewable subscriptions. */
   EXPIRED_SUBSCRIPTION = 21006,
+
   /** This receipt is from the test environment, but it was sent to the production environment for verification. Send it to the test environment instead. */
   TEST_RECEIPT = 21007,
+
   /** This receipt is from the production environment, but it was sent to the test environment for verification. Send it to the production environment instead. */
   PROD_RECEIPT = 21008,
+
   /** This receipt could not be authorized. Treat this the same as if a purchase was never made. */
   COULD_NOT_AUTHORIZE = 21010,
 
@@ -123,7 +131,7 @@ export enum ReceiptValidationStatus {
   /** Internal data access error. */ INTERNAL_ERROR_99 = 21199,
 }
 
-export enum SubscriptionExpirationIntent {
+export enum AppleSubscriptionExpirationIntent {
   /** Customer canceled their subscription. **/
   CUSTOMER_CANCELED = '1',
   /** Billing error; for example customer’s payment information was no longer valid. **/
@@ -136,44 +144,50 @@ export enum SubscriptionExpirationIntent {
   UNKNOWN_ERROR = '5',
 }
 
-export enum SubscriptionRetryFlag {
+export enum AppleSubscriptionRetryFlag {
   /** App Store is still attempting to renew the subscription. */
   ACTIVE = '1',
+
   /** App Store has stopped attempting to renew the subscription. */
   STOPPED = '0',
 }
 
-export enum CancellationReason {
+export enum AppleCancellationReason {
   /** Customer canceled their transaction due to an actual or perceived issue within your app. */
   ACTUAL_ISSUE = '1',
+
   /** Transaction was canceled for another reason, for example, if the customer made the purchase accidentally. */
   OTHER_REASON = '0',
 }
 
-export enum SubscriptionAutoRenewStatus {
+export enum AppleSubscriptionAutoRenewStatus {
   /** Subscription will renew at the end of the current subscription period. */
   ACTIVE = '1',
+
   /** Customer has turned off automatic renewal for their subscription. */
   STOPPED = '0',
 }
 
-export enum SubscriptionPriceConsentStatus {
+export enum AppleSubscriptionPriceConsentStatus {
   /** Customer has agreed to the price increase. Subscription will renew at the higher price. */
   AGREED = '1',
+
   /** Customer has not taken action regarding the increased price. Subscription expires if the customer takes no action before the renewal date. */
   NO_ACTION = '0',
 }
 
-export interface ReceiptValidationRequest {
+export interface AppleReceiptValidationRequest {
   /** The base64 encoded receipt data. */
   'receipt-data': string;
+
   /** *Only used for receipts that contain auto-renewable subscriptions.* Your app’s shared secret (a hexadecimal string). */
   password?: string;
+
   /** *Only used for iOS7 style app receipts that contain auto-renewable or non-renewing subscriptions.* If value is true, response includes only the latest renewal transaction for any subscriptions. */
   'exclude-old-transactions'?: boolean;
 }
 
-export interface ReceiptValidationResponse {
+export interface AppleReceiptValidationResponse {
   /**
    * Either `0` if the receipt is valid, or one of the error codes listed in [Table 2-1](https://developer.apple.com/library/archive/releasenotes/General/ValidateAppStoreReceipt/Chapters/ValidateRemotely.html#//apple_ref/doc/uid/TP40010573-CH104-SW5).
    *
@@ -181,12 +195,12 @@ export interface ReceiptValidationResponse {
    *
    * For iOS 7 style app receipts, the status code is reflects the status of the app receipt as a whole. For example, if you send a valid app receipt that contains an expired subscription, the response is 0 because the receipt as a whole is valid.
    */
-  status: ReceiptValidationStatus;
+  status: AppleReceiptValidationStatus;
 
   /**
    * A JSON representation of the receipt that was sent for verification. For information about keys found in a receipt, see [Receipt Fields](https://developer.apple.com/library/archive/releasenotes/General/ValidateAppStoreReceipt/Chapters/ReceiptFields.html#//apple_ref/doc/uid/TP40010573-CH106-SW1).
    */
-  receipt: AppReceipt;
+  receipt: AppleAppReceipt;
 
   /**
    * *Only returned for receipts containing auto-renewable subscriptions.*
@@ -221,7 +235,7 @@ export interface ReceiptValidationResponse {
   pending_renewal_info?: Record<string, unknown>[];
 }
 
-export interface AppReceipt {
+export interface AppleAppReceipt {
   /**
    * The app’s bundle identifier.
    *
@@ -247,7 +261,7 @@ export interface AppReceipt {
    *
    * The in-app purchase receipt for a non-consumable product, auto-renewable subscription, non-renewing subscription, or free subscription remains in the receipt indefinitely.
    */
-  in_app: IAPReceipt[];
+  in_app: AppleReceipt[];
 
   /**
    * The version of the app that was originally purchased.
@@ -279,7 +293,7 @@ export interface AppReceipt {
   expiration_date?: string;
 }
 
-export interface IAPReceipt {
+export interface AppleReceipt {
   /**
    * The number of items purchased. (string, interpreted as an integer)
    *
@@ -344,14 +358,14 @@ export interface IAPReceipt {
    *
    * This key is only present for a receipt containing an expired auto-renewable subscription. You can use this value to decide whether to display appropriate messaging in your app for customers to resubscribe.
    */
-  expiration_intent?: SubscriptionExpirationIntent;
+  expiration_intent?: AppleSubscriptionExpirationIntent;
 
   /**
    * For an expired subscription, whether or not Apple is still attempting to automatically renew the subscription.
    *
    * This key is only present for auto-renewable subscription receipts. If the customer’s subscription failed to renew because the App Store was unable to complete the transaction, this value will reflect whether or not the App Store is still trying to renew the subscription.
    */
-  is_in_billing_retry_period?: SubscriptionRetryFlag;
+  is_in_billing_retry_period?: AppleSubscriptionRetryFlag;
 
   /**
    * For a subscription, whether or not it is in the free trial period.
@@ -385,7 +399,7 @@ export interface IAPReceipt {
    *
    * Use this value along with the cancellation date to identify possible issues in your app that may lead customers to contact Apple customer support.
    */
-  cancellation_reason?: CancellationReason;
+  cancellation_reason?: AppleCancellationReason;
 
   /**
    * A string that the App Store uses to uniquely identify the application that created the transaction.
@@ -419,7 +433,7 @@ export interface IAPReceipt {
    *
    * This key is only present for auto-renewable subscription receipts, for active or expired subscriptions. The value for this key should not be interpreted as the customer’s subscription status. You can use this value to display an alternative subscription product in your app, for example, a lower level subscription plan that the customer can downgrade to from their current plan.
    */
-  auto_renew_status?: SubscriptionAutoRenewStatus;
+  auto_renew_status?: AppleSubscriptionAutoRenewStatus;
 
   /**
    * The current renewal preference for the auto-renewable subscription.
@@ -433,13 +447,13 @@ export interface IAPReceipt {
    *
    * This key is only present for auto-renewable subscription receipts if the subscription price was increased without keeping the existing price for active subscribers. You can use this value to track customer adoption of the new price and take appropriate action.
    */
-  price_consent_status?: SubscriptionPriceConsentStatus;
+  price_consent_status?: AppleSubscriptionPriceConsentStatus;
 }
 
 /**
  * Payment discount interface @see https://developer.apple.com/documentation/storekit/skpaymentdiscount?language=objc
  */
-export interface PaymentDiscount {
+export interface ApplePaymentDiscount {
   /**
    * A string used to uniquely identify a discount offer for a product.
    */

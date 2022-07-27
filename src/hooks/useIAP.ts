@@ -9,7 +9,7 @@ import {
   requestPurchase as iapRequestPurchase,
   requestSubscription as iapRequestSubscription,
 } from '../index';
-import type {Purchase} from '../types';
+import type {Purchase, Sku} from '../types';
 
 import {useIAPContext} from './withIAPContext';
 
@@ -32,14 +32,14 @@ export function useIAP() {
   } = useIAPContext();
 
   const getProducts = useCallback(
-    async (skus: string[]) => {
+    async (skus: Sku[]) => {
       setProducts(await iapGetProducts(skus));
     },
     [setProducts],
   );
 
   const getSubscriptions = useCallback(
-    async (skus: string[]) => {
+    async (skus: Sku[]) => {
       setSubscriptions(await iapGetSubscriptions(skus));
     },
     [setSubscriptions],
@@ -65,8 +65,8 @@ export function useIAP() {
           isConsumable,
           developerPayloadAndroid,
         );
-      } catch (err) {
-        throw err;
+      } catch (error) {
+        throw error;
       } finally {
         if (purchase.productId === currentPurchase?.productId) {
           setCurrentPurchase(undefined);

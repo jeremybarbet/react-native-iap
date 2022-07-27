@@ -142,7 +142,7 @@ class Iap: RCTEventEmitter, SKRequestDelegate, SKPaymentTransactionObserver, SKP
         reject: @escaping RCTPromiseRejectBlock = { _, _, _ in }
     ) {
         SKPaymentQueue.default().remove(self)
-        resolve(nil)
+        resolve(true)
     }
 
     @objc public func getItems(

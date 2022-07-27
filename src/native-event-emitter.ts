@@ -1,22 +1,30 @@
 import {EmitterSubscription, NativeEventEmitter, Platform} from 'react-native';
+
 import {AndroidModule, NativeModule} from './module';
-import type {InAppPurchase, PurchaseError, SubscriptionPurchase} from './types';
+import type {
+  InAppPurchase,
+  NativeModuleEventEmitter,
+  PurchaseError,
+  SubscriptionPurchase,
+} from './types';
+
+const nativeEventEmitter = new NativeEventEmitter(
+  NativeModule as unknown as NativeModuleEventEmitter,
+);
 
 /**
  * Add IAP purchase event
  */
 export const purchaseUpdatedListener = (
   listener: (event: InAppPurchase | SubscriptionPurchase) => void,
-): EmitterSubscription => {
-  const myModuleEvt = new NativeEventEmitter(NativeModule);
-
-  const emitterSubscription = myModuleEvt.addListener(
+) => {
+  const emitterSubscription = nativeEventEmitter.addListener(
     'purchase-updated',
     listener,
   );
 
   if (Platform.OS === 'android') {
-    AndroidModule().startListening();
+    AndroidModule.startListening();
   }
 
   return emitterSubscription;
@@ -28,4 +36,4 @@ export const purchaseUpdatedListener = (
 export const purchaseErrorListener = (
   listener: (errorEvent: PurchaseError) => void,
 ): EmitterSubscription =>
-  new NativeEventEmitter(NativeModule).addListener('purchase-error', listener);
+  nativeEventEmitter.addListener('purchase-error', listener);

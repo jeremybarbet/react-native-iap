@@ -1,17 +1,45 @@
 import 'react-native';
 
 import type {PaymentDiscount} from './apple';
-import type {Product, ProductCommon} from './index';
+import type {Product, ProductCommon, ProductPurchase} from './index';
 
-export type Sku = string;
+type Sku = string;
 
-export interface NativeModuleProps {
-  initConnection(): Promise<boolean>;
-  endConnection(): Promise<void>;
+enum IAPErrorCode {
+  E_IAP_NOT_AVAILABLE = 'E_IAP_NOT_AVAILABLE',
+  E_UNKNOWN = 'E_UNKNOWN',
+  E_USER_CANCELLED = 'E_USER_CANCELLED',
+  E_USER_ERROR = 'E_USER_ERROR',
+  E_ITEM_UNAVAILABLE = 'E_ITEM_UNAVAILABLE',
+  E_REMOTE_ERROR = 'E_REMOTE_ERROR',
+  E_NETWORK_ERROR = 'E_NETWORK_ERROR',
+  E_SERVICE_ERROR = 'E_SERVICE_ERROR',
+  E_RECEIPT_FAILED = 'E_RECEIPT_FAILED',
+  E_RECEIPT_FINISHED_FAILED = 'E_RECEIPT_FINISHED_FAILED',
+  E_NOT_PREPARED = 'E_NOT_PREPARED',
+  E_NOT_ENDED = 'E_NOT_ENDED',
+  E_ALREADY_OWNED = 'E_ALREADY_OWNED',
+  E_DEVELOPER_ERROR = 'E_DEVELOPER_ERROR',
+  E_BILLING_RESPONSE_JSON_PARSE_ERROR = 'E_BILLING_RESPONSE_JSON_PARSE_ERROR',
+  E_DEFERRED_PAYMENT = 'E_DEFERRED_PAYMENT',
 }
 
-export interface IosModuleProps extends NativeModuleProps {
-  getItems(skus: Sku[]): Promise<Product[]>;
+interface PurchaseResult {
+  responseCode?: number;
+  debugMessage?: string;
+  code?: string;
+  message?: string;
+}
+
+type Purchase = InAppPurchase | SubscriptionPurchase;
+
+interface NativeModuleProps {
+  initConnection(): Promise<boolean>;
+  endConnection(): Promise<boolean>;
+}
+
+interface IosModuleProps extends NativeModuleProps {
+  getItems(skus: Sku[]): Promise<(Product | Subscription)[]>;
   getAvailableItems(): Promise<void>;
   buyProduct(
     sku: Sku,
@@ -33,13 +61,31 @@ export interface IosModuleProps extends NativeModuleProps {
   presentCodeRedemptionSheet(): Promise<void>;
 }
 
-export interface AndroidModuleProps extends NativeModuleProps {
+interface AndroidModuleProps extends NativeModuleProps {
+  startListening(): Promise<void>;
   flushFailedPurchasesCachedAsPending(): Promise<boolean>;
-  getItemsByType(type: string, skus: Sku[]): Promise<Product[]>;
+  getItemsByType(
+    type: string,
+    skus: Sku[],
+  ): Promise<(Product | Subscription)[]>;
+  getAvailableItemsByType(
+    type: AndroidSkuType,
+  ): Promise<(Product | Subscription)[]>;
+  getPurchaseHistoryByType(type: AndroidSkuType): Promise<ProductPurchase[]>;
+  buyItemByType(
+    type: strindAndroidSkuTypeg,
+    sku: Sku,
+    purchaseToken?: string,
+  ): Promise<SubscriptionPurchase | null>;
 }
 
-export interface AmazonModuleProps extends NativeModuleProps {
+interface AmazonModuleProps extends NativeModuleProps {
   getUser(): Promise<{userMarketplaceAmazon: string}>;
+}
+
+interface NativeModuleEventEmitter extends NativeModuleProps {
+  addListener(eventType: string): void;
+  removeListeners(count: number): void;
 }
 
 declare module 'react-native' {
